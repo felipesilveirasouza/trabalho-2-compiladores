@@ -1,0 +1,31 @@
+{
+  "agent_code": {
+    "traffic_manager": {
+      "beliefs": [
+        "semaforo_vermelho",
+        "semaforo_verde",
+        "veiculo_detectado"
+      ],
+      "goal": "controlar_trafego",
+      "plans": {
+        "plan_controlar_trafego": {
+          "trigger": "controlar_trafego",
+          "ctx": "",
+          "body": [
+            "A_verificar_semaforo",
+            "A_esperar_veiculo"
+          ]
+        },
+        "plan_permitir_passagem": {
+          "trigger": "permitir_passagem",
+          "ctx": "semaforo_vermelho",
+          "body": [
+            "A_abrir_semaforo",
+            "B_semaforo_vermelho_removido",
+            "B_semaforo_verde"
+          ]
+        }
+      }
+    }
+  }
+}

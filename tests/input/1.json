@@ -1,0 +1,32 @@
+{
+  "agent_code": {
+    "bob": {
+      "beliefs": [
+        "tenhoProva",
+        "naoTenhoGuardaChuva",
+        "estaChovendo"
+      ],
+      "goal": "comprarGuardaChuva",
+      "plans": {
+        "plan_comprarGuardaChuva": {
+          "trigger": "comprarGuardaChuva",
+          "ctx": "estaChovendo",
+          "body": [
+            "A_sair_para_comprar_guardachuva",
+            "A_procurar_loja",
+            "A_comprar_guardachuva",
+            "G_estudar"
+          ]
+        },
+        "plan_estudar": {
+          "trigger": "estudar",
+          "ctx": "tenhoProva",
+          "body": [
+            "A_convidar_alice",
+            "A_estudar_na_biblioteca"
+          ]
+        }
+      }
+    }
+  }
+}

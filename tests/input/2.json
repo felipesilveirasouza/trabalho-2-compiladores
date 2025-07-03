@@ -1,0 +1,24 @@
+{
+  "agent_code": {
+    "alice": {
+      "beliefs": [
+        "tenhoProva",
+        "tenhoGuardaChuva",
+        "estaChovendo"
+      ],
+      "goal": "estudarNaBiblioteca",
+      "plans": {
+        "plan_estudarNaBiblioteca": {
+          "trigger": "estudarNaBiblioteca",
+          "ctx": "tenhoProva",
+          "body": [
+            "A_escolher_caminho",
+            "A_usar_guardachuva",
+            "A_ir_para_biblioteca",
+            "A_estudar"
+          ]
+        }
+      }
+    }
+  }
+}
