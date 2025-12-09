@@ -6,10 +6,8 @@
 
 extern int yylineno;
 
-// NOVO: Adicione a declaração da função de registro de memória
 extern void register_global_allocated_string(char *str);
 
-// Funcao strip_quotes CORRIGIDA para registrar alocacoes de memoria
 char *strip_quotes(char *str) {
     char *result_str;
 
@@ -20,11 +18,10 @@ char *strip_quotes(char *str) {
             result_str[strlen(str) - 2] = '\0';
         }
     } else {
-        result_str = strdup(str); // strdup também aloca memória
+        result_str = strdup(str);
     }
 
     if (result_str) {
-        // NOVO: Registra a string alocada globalmente
         register_global_allocated_string(result_str);
     }
     return result_str;
@@ -37,7 +34,7 @@ char *strip_quotes(char *str) {
 
 %%
 
-"\"agent_code\""    { return AGENT_CODE; } /* <-- CORRIGIDO AQUI */
+"\"agent_code\""    { return AGENT_CODE; }
 "\"beliefs\""       { return BELIEFS; }
 "\"goal\""          { return GOAL; }
 "\"plans\""         { return PLANS; }
@@ -45,12 +42,10 @@ char *strip_quotes(char *str) {
 "\"ctx\""           { return CTX; }
 "\"body\""          { return BODY; }
 
-
 \"([^"\\]|\\.)*\"   {
                         yylval.str_val = strip_quotes(yytext);
                         return STRING_LITERAL;
                     }
-
 
 "{"                 { return OBRACE; }
 "}"                 { return CBRACE; }
@@ -59,8 +54,7 @@ char *strip_quotes(char *str) {
 ":"                 { return COLON; }
 ","                 { return COMMA; }
 
-
-[ \t\n\r]+          { /* Ignorar (não retorna token) */ }
+[ \t\n\r]+          { }
 
 
 .                   {
