@@ -7,8 +7,6 @@
 
 extern int yylineno;
 
-/* * Função auxiliar para remover aspas de strings literais.
- */
 char *strip_quotes(char *str) {
     char *result_str;
 
