@@ -6,7 +6,7 @@ temp/json2maspy_translator: src/parser.y src/lexer.l
 	bison -d src/parser.y -o temp/parser.tab.c
 	flex -o temp/lex.yy.c src/lexer.l
 	gcc -Wall -g temp/lex.yy.c temp/parser.tab.c -o temp/json2maspy_translator
-	@echo "Execute o comando cd temp && ./json2maspy_translator ../tests/input/numero.json"
+	@echo "Execute o comando ./temp/json2maspy_translator tests/input/1.json"
 	@echo "Depois execute python maspy_output.py"
 
 setup:
