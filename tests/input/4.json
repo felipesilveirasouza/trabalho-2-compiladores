@@ -1,53 +1,30 @@
 {
   "agent_code": {
-    "charlie": {
-      "beliefs": [
-        "diaDeSol",
-        "geladeiraVazia",
-        "estaComFome"
-      ],
-      "goal": "fazerCompras",
-      "plans": {
-        "comprar_comida": {
-          "trigger": "comprar_comida",
-          "ctx": "pedirComida",
-          "body": [
-            "A_ir_ao_mercado",
-            "G_pagarConta",
-            "B_comprasFeitas"
-          ]
-        },
-        "pedir_pizza": {
-          "trigger": "pedir_pizza",
-          "ctx": "fomeRapida",
-          "body": [
-            "A_ligar_pizzaria",
-            "B_pizzaACaminho"
-          ]
-        },
-        "esperar_entrega": {
-          "trigger": "esperar_entrega",
-          "ctx": "pizzaACaminho",
-          "body": []
-        },
-        "ir_para_praia": {
-          "trigger": "ir_para_praia",
-          "ctx": "fimDeSemana",
-          "body": [
-            "A_pegar_toalha",
-            "A_passar_protetor",
-            "B_na_praia"
-          ]
-        },
-        "iniciar_fazerCompras": {
-          "trigger": "fazerCompras",    
-          "ctx": "estaComFome",         
-          "body": [
-            "A_verificar_geladeira",    
-            "B_pedirComida",            
-            "G_comprar_comida"          
-          ]
-        }
+    "logging_agent": "Agente_Log",
+    "beliefs": [
+      "B_log_ativo"
+    ],
+    "goal": "G_registrar_eventos",
+    "plans": {
+      "pl_acao_externa": {
+        "trigger": "A_verificar_semaforo",
+        "ctx": "B_log_ativo",
+        "body": [
+          "A_registrar_timestamp"
+        ]
+      },
+      "pl_hook_vazio": {
+        "trigger": "G_registrar_eventos",
+        "ctx": "",
+        "body": []
+      },
+      "pl_finalizar_log": {
+        "trigger": "B_log_finalizado",
+        "ctx": "B_log_ativo",
+        "body": [
+          "A_compactar_log",
+          "G_parar_servico"
+        ]
       }
     }
   }

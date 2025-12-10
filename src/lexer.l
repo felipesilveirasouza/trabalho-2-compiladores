@@ -1,17 +1,18 @@
 %{
 #include "parser.tab.h"
+#include "tradutor_utils.h" 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
 extern int yylineno;
 
-extern void register_global_allocated_string(char *str);
-
+/* * Função auxiliar para remover aspas de strings literais.
+ */
 char *strip_quotes(char *str) {
     char *result_str;
 
-    if (str && strlen(str) > 1 && str[0] == '"' && str[strlen(str)-1] == '"') {
+    if (str && strlen(str) > 1 && str[0] == '\"' && str[strlen(str)-1] == '\"') {
         result_str = (char *)malloc(strlen(str) - 2 + 1);
         if (result_str) {
             strncpy(result_str, str + 1, strlen(str) - 2);
@@ -32,7 +33,9 @@ char *strip_quotes(char *str) {
 %option noyywrap
 %option yylineno
 
-%%
+%% 
+
+[ \t\r\n]+
 
 "\"agent_code\""    { return AGENT_CODE; }
 "\"beliefs\""       { return BELIEFS; }
@@ -41,24 +44,26 @@ char *strip_quotes(char *str) {
 "\"trigger\""       { return TRIGGER; }
 "\"ctx\""           { return CTX; }
 "\"body\""          { return BODY; }
+"\"name\""          { return NAME; }
 
-\"([^"\\]|\\.)*\"   {
-                        yylval.str_val = strip_quotes(yytext);
-                        return STRING_LITERAL;
-                    }
+\"([^\"\\\\]|\\\\.)*\"   {
+    yylval.str_val = strip_quotes(yytext);
+    return STRING_LITERAL;
+}
 
 "{"                 { return OBRACE; }
 "}"                 { return CBRACE; }
 "["                 { return OBRACKET; }
 "]"                 { return CBRACKET; }
-":"                 { return COLON; }
 ","                 { return COMMA; }
+":"                 { return COLON; }
 
-[ \t\n\r]+          { }
+[a-zA-Z][a-zA-Z0-9_]* { 
+    yylval.str_val = strdup(yytext); 
+    register_global_allocated_string(yylval.str_val); 
+    return IDENTIFIER; 
+}
 
-
-.                   {
-                      fprintf(stderr, "Erro léxico na linha %d: Caractere inesperado '%s'\n", yylineno, yytext);
-                    }
+.                   { fprintf(stderr, "Erro léxico na linha %d: Caractere ilegal '%s'\n", yylineno, yytext); exit(1); }
 
 %%

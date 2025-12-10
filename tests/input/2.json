@@ -1,23 +1,33 @@
 {
   "agent_code": {
-    "alice": {
-      "beliefs": [
-        "tenhoProva",
-        "tenhoGuardaChuva",
-        "estaChovendo"
-      ],
-      "goal": "estudarNaBiblioteca",
-      "plans": {
-        "plan_estudarNaBiblioteca": {
-          "trigger": "estudarNaBiblioteca",
-          "ctx": "tenhoProva",
-          "body": [
-            "A_escolher_caminho",
-            "A_usar_guardachuva",
-            "A_ir_para_biblioteca",
-            "A_estudar"
-          ]
-        }
+    "sensor_unit": "Unidade_Sensor_Veicular",
+    "beliefs": [
+      "B_sistema_operacional"
+    ],
+    "goal": "G_monitorar_trafego",
+    "plans": {
+      "pl_detectar_e_enviar": {
+        "trigger": "G_monitorar_trafego",
+        "ctx": "B_sistema_operacional",
+        "body": [
+          "A_processar_dados_sensor",
+          "M_traffic_manager:B_veiculo_passando:ch_alerta"
+        ]
+      }
+    },
+    "traffic_manager": "Gerente_de_Trafego",
+    "beliefs": [
+      "B_canal_conectado"
+    ],
+    "goal": "G_aguardar_alerta",
+    "plans": {
+      "pl_receber_alerta": {
+        "trigger": "M_B_veiculo_passando:ch_alerta",
+        "ctx": "G_aguardar_alerta",
+        "body": [
+          "B_alerta_recebido_do_sensor",
+          "G_iniciar_ajuste_semaforo"
+        ]
       }
     }
   }

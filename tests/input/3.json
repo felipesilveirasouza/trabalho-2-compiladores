@@ -1,30 +1,35 @@
 {
   "agent_code": {
-    "traffic_manager": {
-      "beliefs": [
-        "semaforo_vermelho",
-        "semaforo_verde",
-        "veiculo_detectado"
-      ],
-      "goal": "controlar_trafego",
-      "plans": {
-        "plan_controlar_trafego": {
-          "trigger": "controlar_trafego",
-          "ctx": "",
-          "body": [
-            "A_verificar_semaforo",
-            "A_esperar_veiculo"
-          ]
-        },
-        "plan_permitir_passagem": {
-          "trigger": "permitir_passagem",
-          "ctx": "semaforo_vermelho",
-          "body": [
-            "A_abrir_semaforo",
-            "B_semaforo_vermelho_removido",
-            "B_semaforo_verde"
-          ]
-        }
+    "maintenance_agent": "Agente_Manutencao",
+    "beliefs": [
+      "B_sistema_online"
+    ],
+    "goal": "G_verificar_status",
+    "plans": {
+      "pl_iniciar_verificacao": {
+        "trigger": "G_verificar_status",
+        "ctx": "B_sistema_online",
+        "body": [
+          "A_rodar_diagnostico",
+          "B_diagnostico_rodado",
+          "G_analisar_resultados"
+        ]
+      },
+      "pl_analisar": {
+        "trigger": "G_analisar_resultados",
+        "ctx": "B_diagnostico_rodado",
+        "body": [
+          "A_processar_dados",
+          "G_gerar_relatorio"
+        ]
+      },
+      "pl_gerar_relatorio": {
+        "trigger": "G_gerar_relatorio",
+        "ctx": "B_diagnostico_rodado",
+        "body": [
+          "A_formatar_output",
+          "B_relatorio_pronto"
+        ]
       }
     }
   }
