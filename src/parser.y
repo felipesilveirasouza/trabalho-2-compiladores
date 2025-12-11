@@ -76,17 +76,17 @@ agent_definition: STRING_LITERAL COLON STRING_LITERAL COMMA // $1: ID, $3: Nome
                       char *goal_str = $9;
                       char *plans_str = $13;
 
-                      add_agent(ag_id, ag_name); // ESTE CHAMA strdup(ag_id) E REGISTRA O NOVO PONTEIRO
+                      add_agent(ag_id, ag_name); 
                       generate_agent_class(ag_id, ag_name, beliefs_str, goal_str, plans_str); 
                       
                       $$ = strdup("");
-                      // Apenas o valor de retorno da regra ($$) é registrado
                       register_global_allocated_string($$); 
                   }
                   ;
 
+// CORREÇÃO: Permite lista de agentes separados por vírgula
 agent_list: agent_definition
-          | agent_list COMMA agent_definition // Permite múltiplos agentes separados por vírgula
+          | agent_list COMMA agent_definition 
           | /* Vazio */
             {
                 $$ = strdup(""); 
@@ -152,16 +152,13 @@ plan_list: plan_definition
 
 plan_definition: STRING_LITERAL COLON OBRACE 
                  TRIGGER COLON STRING_LITERAL COMMA  // $6 é o Trigger (ex: "B_crenca")
-                 CTX COLON STRING_LITERAL COMMA 
+                 CTX COLON STRING_LITERAL COMMA      // $10 é o Contexto
                  BODY COLON OBRACKET plan_body CBRACKET CBRACE
                {
                    char *trigger_val = $6;
 
-                   // VALIDAÇÃO: ID, Trigger e Contexto não podem ter espaços.
-                   if (!validate_identifier_for_spaces($1, "ID do Plano") ||
-                       !validate_identifier_for_spaces($10, "Contexto do Plano")) {
-                       // O trigger tem validação de prefixo e espaços internos mais complexa,
-                       // que é parcialmente delegada ao tradutor ou validada abaixo.
+                   // CORREÇÃO: Removendo validação de espaços no Contexto ($10).
+                   if (!validate_identifier_for_spaces($1, "ID do Plano")) {
                        YYABORT;
                    }
 
@@ -178,6 +175,7 @@ plan_definition: STRING_LITERAL COLON OBRACE
                    char *ctx = $10;
                    char *body = $15;
                    
+                   // A tradução de Trigger, Contexto e Mensagens será feita em translate_plan
                    $$ = translate_plan(plan_id, trigger_val, ctx, body); 
                }
                ;
@@ -201,9 +199,6 @@ plan_body: body_element
  */
 body_element: STRING_LITERAL
             {
-                // A validação de espaços no conteúdo (após o prefixo A_, B_, G_, M_)
-                // é feita dentro do process_body_element. Se falhar, yyerror é chamado
-                // e o Bison aborta no próximo ciclo.
                 $$ = process_body_element($1); 
             }
             ;

@@ -4,8 +4,6 @@
 #include <string.h>
 #include <ctype.h>
 
-// CORREÇÃO ESSENCIAL: Declaração externa de yyerror (função definida no parser.y), 
-// que substitui a inclusão problemática de "parser.tab.h"
 extern int yyerror(const char *s); 
 
 // ====================================================================
@@ -60,16 +58,11 @@ int validate_identifier_for_spaces(const char *str, const char *type) {
 
 void add_agent(char* id, char* name) {
     if (num_agents < MAX_AGENTS) {
-        // CORREÇÃO CRÍTICA: Faz a cópia persistente (strdup) AQUI
-        // E registra as cópias para serem liberadas no final (cleanup_global_allocated_strings).
-        
         char *id_copy = strdup(id);
         char *name_copy = strdup(name);
 
-        // Verifica se a alocação foi bem-sucedida
         if (id_copy == NULL || name_copy == NULL) {
             fprintf(stderr, "Erro de alocação de memória ao adicionar agente.\n");
-            // Tenta liberar o que foi alocado, se houver
             if (id_copy) free(id_copy);
             if (name_copy) free(name_copy);
             return;
@@ -78,7 +71,6 @@ void add_agent(char* id, char* name) {
         register_global_allocated_string(id_copy);
         register_global_allocated_string(name_copy);
         
-        // Armazena os ponteiros para as cópias persistentes
         agent_ids[num_agents] = id_copy; 
         agent_names[num_agents] = name_copy;
         num_agents++;
@@ -88,13 +80,10 @@ void add_agent(char* id, char* name) {
 void add_channel(char* name) {
     for (int i = 0; i < num_channels; i++) {
         if (strcmp(channels[i], name) == 0) {
-            // Se já existe, não precisa adicionar novamente
             return;
         }
     }
     if (num_channels < MAX_CHANNELS) {
-        // Como o nome já deve ser uma cópia persistente (strdup) de quem chamou,
-        // apenas armazenamos o ponteiro.
         channels[num_channels++] = name; 
     }
 }
@@ -152,7 +141,6 @@ void generate_maspy_footer() {
     // 1. Instanciação dos Agentes
     fprintf(maspy_output_file, "# Instanciação dos Agentes\n");
     for (int i = 0; i < num_agents; i++) {
-        // CORREÇÃO: Usa agent_ids[i] para o nome da variável Python no lado esquerdo.
         fprintf(maspy_output_file, "%s = Agente_%s()\n", agent_ids[i], agent_ids[i]);
     }
 
@@ -160,7 +148,6 @@ void generate_maspy_footer() {
     if (num_channels > 0) {
         fprintf(maspy_output_file, "\n# Instanciação dos Canais\n");
         for (int i = 0; i < num_channels; i++) {
-            // Usa o ID do canal (armazenado em channels[i]) para instanciar a classe Channel
             fprintf(maspy_output_file, "%s = Channel('%s')\n", channels[i], channels[i]);
         }
     }
@@ -170,7 +157,6 @@ void generate_maspy_footer() {
 
     char agents_list[1024] = "";
     if (num_agents > 0) {
-        // CORREÇÃO: Usa agent_ids[i] aqui também
         strcat(agents_list, agent_ids[0]);
         for (int i = 1; i < num_agents; i++) {
             strcat(agents_list, ", ");
@@ -188,10 +174,8 @@ void generate_maspy_footer() {
     }
 
     if (num_agents > 0 && num_channels > 0) {
-        // Conexão com Agentes E Canais
         fprintf(maspy_output_file, "Admin().connect_to([%s], [%s])\n", agents_list, channels_list);
     } else if (num_agents > 0) {
-        // Conexão apenas com Agentes
         fprintf(maspy_output_file, "Admin().connect_to([%s])\n", agents_list);
     }
 
@@ -204,7 +188,6 @@ void generate_maspy_footer() {
 // ====================================================================
 
 char* translate_action(char* action_name) {
-    // Identação de 8 espaços (dentro do método do plano)
     char *result;
     asprintf(&result, "        self.%s()", action_name); 
     register_global_allocated_string(result);
@@ -212,7 +195,6 @@ char* translate_action(char* action_name) {
 }
 
 char* translate_add_belief(char* belief_name) {
-    // CORREÇÃO: Identação de 8 espaços (dentro do __init__)
     char *result;
     asprintf(&result, "        self.add(Belief('%s'))", belief_name); 
     register_global_allocated_string(result);
@@ -220,7 +202,6 @@ char* translate_add_belief(char* belief_name) {
 }
 
 char* translate_add_goal(char* goal_name) {
-    // CORREÇÃO: Identação de 8 espaços (dentro do __init__)
     char *result;
     asprintf(&result, "        self.add(Goal('%s'))", goal_name); 
     register_global_allocated_string(result);
@@ -228,54 +209,65 @@ char* translate_add_goal(char* goal_name) {
 }
 
 
-// CORREÇÃO: Função translate_plan reescrita para aceitar triggers MASPY de Conhecimento, Mensagem e Ação
+// CORREÇÃO ESSENCIAL: translate_plan para eliminar Ctx() e ajustar M_ para gain, Knowledge(..., Any)
 char* translate_plan(char* plan_id, char* trigger, char* ctx, char* body) {
     char *result = NULL;
-    char *trigger_args = NULL; // Argumentos dentro do @pl() antes do Ctx
+    char *trigger_args = NULL; 
+    
+    char knowledge_type[10] = "";
+    char knowledge_name[100] = "";
+    char *ctx_output = NULL;
 
     // 1. Processa o trigger baseado no prefixo
     if (strncmp(trigger, "B_", 2) == 0 || strncmp(trigger, "G_", 2) == 0) {
-        // Trigger de Conhecimento (Belief ou Goal) -> Sintaxe: @pl(gain, Belief/Goal('...'), Ctx('...'))
+        // Trigger de Conhecimento (Belief ou Goal) -> Sintaxe: @pl(gain, Belief/Goal('...'), Belief('...'))
         char *knowledge_class = (trigger[0] == 'B') ? "Belief" : "Goal";
         char *knowledge_content = trigger + 2; 
-        // Assume 'gain' como a ação padrão para novos itens de conhecimento.
         asprintf(&trigger_args, "gain, %s('%s')", knowledge_class, knowledge_content);
 
     } else if (strncmp(trigger, "M_", 2) == 0) {
-        // Trigger de Mensagem -> Sintaxe: @pl(Msg('tipo', 'canal'), Ctx('...'))
-        // Assume que a string é no formato M_tipo:canal (Ex: "M_tell:ch_status")
+        // Trigger de Mensagem (CORREÇÃO: Traduzido como gain, Knowledge(..., Any) para simular Meta/Crença induzida)
+        
         char *msg_params = trigger + 2; 
-
-        // CRIA UMA CÓPIA para manipular strtok de forma segura (embora usemos strchr para evitar strtok)
         char *msg_params_copy = strdup(msg_params);
-        char *msg_type = msg_params_copy;
+        char *msg_content = msg_params_copy; 
+        
+        char *colon_pos = strchr(msg_content, ':');
         char *msg_channel = NULL;
-        char *colon_pos = strchr(msg_type, ':');
-
+        
         if (colon_pos) {
-            *colon_pos = '\0'; // Termina a string 'tipo'
-            msg_channel = colon_pos + 1; // 'canal'
-            
-            // Validação de segurança (mantida)
-            if (!validate_identifier_for_spaces(msg_type, "Tipo de Mensagem") ||
-                !validate_identifier_for_spaces(msg_channel, "Canal de Mensagem")) {
-                free(msg_params_copy);
-                goto error_handling;
-            }
-
-            // >> CORREÇÃO 1: REGISTRAR O CANAL <<
-            // add_channel exige uma cópia persistente, pois msg_params_copy será liberado.
-            add_channel(strdup(msg_channel)); 
-
-            asprintf(&trigger_args, "Msg('%s', '%s')", msg_type, msg_channel);
-        } else {
-            // Se não houver ':' (canal)
-            asprintf(&trigger_args, "Msg('%s')", msg_type);
+            *colon_pos = '\0'; 
+            msg_channel = colon_pos + 1;
         }
+
+        // Extrai tipo e nome do conhecimento (removendo prefixo B_/G_)
+        if (strncmp(msg_content, "B_", 2) == 0) {
+            strcpy(knowledge_type, "Belief");
+            strcpy(knowledge_name, msg_content + 2);
+        } else if (strncmp(msg_content, "G_", 2) == 0) {
+            strcpy(knowledge_type, "Goal");
+            strcpy(knowledge_name, msg_content + 2);
+        } else {
+            // Se o prefixo for omitido, assume Goal (padrão para comunicação com achieve)
+            strcpy(knowledge_type, "Goal"); 
+            strcpy(knowledge_name, msg_content);
+        }
+        
+        // O canal é registrado (CORRIGIDO: se for usado, é registrado)
+        if (msg_channel && strlen(msg_channel) > 0) {
+            char *channel_copy = strdup(msg_channel); 
+            register_global_allocated_string(channel_copy); 
+            add_channel(channel_copy); 
+        }
+
+        // Sintaxe: gain, Knowledge('nome', Any)
+        asprintf(&trigger_args, "gain, %s('%s', Any)", 
+                 knowledge_type, knowledge_name);
+        
         free(msg_params_copy);
         
     } else if (strncmp(trigger, "A_", 2) == 0) {
-        // Trigger de Ação (Ação Planejada) -> Sintaxe: @pl(act, Action('...'), Ctx('...'))
+        // Trigger de Ação
         char *action_content = trigger + 2;
 
         if (!validate_identifier_for_spaces(action_content, "Ação")) {
@@ -295,16 +287,46 @@ char* translate_plan(char* plan_id, char* trigger, char* ctx, char* body) {
     if (!trigger_args) {
         goto error_handling; 
     }
+    
+    // 2. Processa o Contexto (Ctx) (CORREÇÃO: Traduz diretamente para Belief() ou Any)
+    if (strlen(ctx) == 0 || strcmp(ctx, "") == 0) {
+        // Contexto Vazio (Traduz para Any)
+        ctx_output = strdup("Any");
+        register_global_allocated_string(ctx_output);
+    } else if (strncmp(ctx, "G_", 2) == 0) {
+        // Se o contexto é Goal (Ex: G_aguardar_alerta)
+        char *goal_content = ctx + 2;
+        asprintf(&ctx_output, "Goal('%s')", goal_content); 
+        register_global_allocated_string(ctx_output);
+    } else {
+        // Assume Belief (Ex: B_sistema_operacional ou apenas 'crenca')
+        char *belief_content = (strncmp(ctx, "B_", 2) == 0) ? (ctx + 2) : ctx;
+        asprintf(&ctx_output, "Belief('%s')", belief_content); 
+        register_global_allocated_string(ctx_output);
+    }
 
-    // 2. Monta a string de saída final: @pl(TRIGGERS..., Ctx('...'))
-    asprintf(&result, "\n    @pl(%s, Ctx('%s'))\n    def plan_%s_(self):\n%s", 
+
+    // 3. Monta a string de saída final: @pl(TRIGGER_ARGS, CONTEXTO_BELIEF_OU_ANY)
+    
+    char *plan_func_signature;
+    // O plano precisa de 'src, msg' se o trigger usar Any (ou seja, se for M_ ou se o trigger_args tiver 'Any')
+    if (strstr(trigger_args, "Any") != NULL) {
+        asprintf(&plan_func_signature, "def plan_%s_(self, src, msg):", plan_id);
+    } else {
+        asprintf(&plan_func_signature, "def plan_%s_(self):", plan_id);
+    }
+    register_global_allocated_string(plan_func_signature);
+
+
+    asprintf(&result, "\n    @pl(%s, %s)\n    %s\n%s", 
              trigger_args,       
-             ctx, 
-             plan_id, 
+             ctx_output, 
+             plan_func_signature,
              body);
 
     register_global_allocated_string(result);
     free(trigger_args);
+    // ctx_output e plan_func_signature são liberados globalmente
     return result;
 
 error_handling:
@@ -319,31 +341,39 @@ char* translate_message(char* receiver, char* knowledge_str, char* channel_str) 
     char knowledge_type[10]; 
     char knowledge_name[100]; 
     char *result;
+    char *performative; 
 
+    // O knowledge_str deve conter B_ ou G_
     if (strncmp(knowledge_str, "B_", 2) == 0) {
         strcpy(knowledge_type, "Belief");
-        strcpy(knowledge_name, knowledge_str + 2); 
+        strcpy(knowledge_name, knowledge_str + 2);
+        performative = "tell"; 
     } else if (strncmp(knowledge_str, "G_", 2) == 0) {
         strcpy(knowledge_type, "Goal");
-        strcpy(knowledge_name, knowledge_str + 2); 
+        strcpy(knowledge_name, knowledge_str + 2);
+        performative = "achieve"; 
     } else {
-        result = strdup("        # ERRO: Tipo de conhecimento da mensagem desconhecido\n");
-        register_global_allocated_string(result);
-        return result;
+        // Se não houver prefixo (não deve acontecer com validação estrita, mas como fallback)
+        strcpy(knowledge_type, "Belief"); 
+        strcpy(knowledge_name, knowledge_str);
+        performative = "tell";
     }
-    
-    // >> CORREÇÃO 3: REGISTRAR O CANAL E MONTAR STRING <<
+
+    // Sintaxe self.send com achieve/tell e canal opcional.
     if (channel_str && strlen(channel_str) > 0) {
-        // add_channel exige uma cópia persistente, pois channel_str é temporário (apontando para temp_params)
-        add_channel(strdup(channel_str)); 
+        // Com canal (4 argumentos)
+        char *channel_copy = strdup(channel_str); 
+        register_global_allocated_string(channel_copy); 
+        add_channel(channel_copy); 
         
-        // Com canal
-        asprintf(&result, "        self.send('%s', tell, %s('%s'), '%s')",
-             receiver, knowledge_type, knowledge_name, channel_str);
+        // self.send('receiver', achieve/tell, Knowledge('name'), 'channel_name')
+        asprintf(&result, "        self.send('%s', %s, %s('%s'), '%s')",
+             receiver, performative, knowledge_type, knowledge_name, channel_str);
     } else {
-        // Sem canal (opcional em MASPY, mas a sintaxe deve ser simplificada)
-        asprintf(&result, "        self.send('%s', tell, %s('%s')) # Aviso: Canal omitido",
-             receiver, knowledge_type, knowledge_name);
+        // Sem canal (3 argumentos)
+        // self.send('receiver', achieve/tell, Knowledge('name'))
+        asprintf(&result, "        self.send('%s', %s, %s('%s'))",
+             receiver, performative, knowledge_type, knowledge_name);
     }
 
     register_global_allocated_string(result);
@@ -379,44 +409,36 @@ char* process_body_element(char *body_line) {
         return translate_add_belief(body_line + 2);
         
     } else if (strncmp(body_line, "M_", 2) == 0) {
-        // CORREÇÃO 2: Implementação da lógica de extração para Ações M_
-        // Esperado M_receptor:conhecimento:canal
+        // Esperado M_receptor:conhecimento:canal (canal opcional)
         char *message_params = body_line + 2; 
 
-        // Cria uma cópia persistente para manipulação, pois message_params é temporário
         char *temp_copy = strdup(message_params);
         char *receptor_p = temp_copy;
         char *knowledge_p = NULL;
         char *channel_p = NULL;
 
-        // Encontra o primeiro ':' (separa receptor e conhecimento)
         knowledge_p = strchr(receptor_p, ':');
         if (knowledge_p) {
-            *knowledge_p = '\0'; // Termina o receptor
+            *knowledge_p = '\0'; 
             knowledge_p++;
             
-            // Encontra o segundo ':' (separa conhecimento e canal)
             channel_p = strchr(knowledge_p, ':');
             if (channel_p) {
-                *channel_p = '\0'; // Termina o knowledge
+                *channel_p = '\0'; 
                 channel_p++;
             }
             
-            // Validações de segurança (se necessário)
-            if (!validate_identifier_for_spaces(receptor_p, "Receptor") ||
-                !validate_identifier_for_spaces(knowledge_p, "Conhecimento")) {
-                // A validação do canal ocorre em translate_message
+            if (!validate_identifier_for_spaces(receptor_p, "Receptor")) {
                 free(temp_copy);
                 return strdup("");
             }
             
-            // Chama o tradutor de mensagem
             char *result = translate_message(receptor_p, knowledge_p, channel_p);
             free(temp_copy);
             return result;
         } else {
-            // Sintaxe inválida: Não tem pelo menos 1 ':' (receptor:conhecimento)
-            yyerror("Sintaxe M_ no corpo inválida. Esperado M_receptor:conhecimento:canal");
+            // Sintaxe inválida
+            yyerror("Sintaxe M_ no corpo inválida. Esperado M_receptor:conhecimento[:canal]");
             free(temp_copy);
             return strdup("");
         }
